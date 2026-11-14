@@ -36,10 +36,12 @@ docker compose ps
 .\mvnw.cmd spring-boot:run
 ```
 
-The application listens on port 8080.
+The application listens on port 8080. It is configured to connect to PostgreSQL at `localhost:5432`, database `reconciliation`, with the local user and password `reconciliation`. Spring opens that connection when the application first uses the database.
+
+`reconciliation` is a local development password for the empty database created by Docker. It is not a credential for any real system. `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD` override those settings when they are present in the process environment.
 
 ## Roadmap
 
-- Connect the application to PostgreSQL, Kafka, and Redis.
+- Connect the application to Kafka and Redis.
 - Accept transaction records and store them.
 - Reconcile the internal ledger against the payment processor.
