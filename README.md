@@ -38,7 +38,9 @@ docker compose ps
 
 The application listens on port 8080. It is configured to connect to PostgreSQL at `localhost:5432`, database `reconciliation`, with the local user and password `reconciliation`. Spring opens that connection when the application first uses the database.
 
-`reconciliation` is a local development password for the empty database created by Docker. It is not a credential for any real system. `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD` override those settings when they are present in the process environment.
+`reconciliation` is a local development password for the empty database created by Docker. `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD` override those settings when they are present in the process environment.
+
+On startup, Flyway applies any pending migrations. The first migration creates the institutions table.
 
 ## Roadmap
 

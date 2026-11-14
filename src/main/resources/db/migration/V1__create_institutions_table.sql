@@ -1,0 +1,8 @@
+CREATE TABLE institutions (
+    id UUID PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    code VARCHAR(40) NOT NULL UNIQUE,
+    active BOOLEAN NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
+)
