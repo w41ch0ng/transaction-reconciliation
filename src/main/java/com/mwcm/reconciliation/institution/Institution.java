@@ -27,7 +27,29 @@ public class Institution {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    // empty constructor for hibernate
     protected Institution() {}
+
+    // public constructor for application code to call
+    public Institution(String name, String code) {
+        if (name != null && !name.isBlank()) {
+            this.name = name;
+        } else {
+            throw new IllegalArgumentException("name is required");
+        }
+        
+        if (code != null && !code.isBlank()) {
+            this.code = code;
+        } else {
+            throw new IllegalArgumentException("code is required");
+        }
+
+        this.active = true;
+
+        Instant now = Instant.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
 
     public UUID getId() {
         return id;
