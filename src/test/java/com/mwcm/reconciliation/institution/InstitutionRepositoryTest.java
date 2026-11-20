@@ -25,11 +25,11 @@ class InstitutionRepositoryTest {
 
 	@Test
 	void findByCodeReturnsSavedInstitution() {
-		repository.save(new Institution("Northstar Bank", "NORTHSTAR"));
+		repository.save(new Institution("Northstar Bank", "REPO-FIND"));
 
-		Institution found = repository.findByCode("NORTHSTAR").orElseThrow();
+		Institution found = repository.findByCode("REPO-FIND").orElseThrow();
 
-		assertEquals("NORTHSTAR", found.getCode());
+		assertEquals("REPO-FIND", found.getCode());
 		assertNotNull(found.getId());
 	}
 
