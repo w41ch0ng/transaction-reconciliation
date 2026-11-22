@@ -16,12 +16,15 @@ import com.mwcm.reconciliation.source.IntegrationSourceRepository;
 public class TransactionService {
     private final TransactionRepository repository;
     private final IntegrationSourceRepository sourceRepository;
+    private final TransactionNormaliser normaliser;
 
     public TransactionService(
             TransactionRepository repository,
-            IntegrationSourceRepository sourceRepository) {
+            IntegrationSourceRepository sourceRepository,
+            TransactionNormaliser normaliser) {
         this.repository = repository;
         this.sourceRepository = sourceRepository;
+        this.normaliser = normaliser;
     }
 
     public TransactionResponse create(UUID sourceId, CreateTransactionRequest request) {
@@ -31,10 +34,12 @@ public class TransactionService {
         TransactionRecord saved = repository.save(new TransactionRecord(
                 source,
                 request.externalReference(),
-                request.transactionType(),
+                normaliser.normaliseType(request.transactionType()),
                 request.amountMinorUnits(),
-                request.currency(),
+                normaliser.normaliseCurrency(request.currency()),
                 request.transactionTimestamp(),
+                normaliser.providerStatus(request.status()),
+                normaliser.normaliseStatus(request.status()),
                 request.metadata()));
         return toResponse(saved);
     }
@@ -70,6 +75,8 @@ public class TransactionService {
                 transaction.getCurrency(),
                 transaction.getTransactionTimestamp(),
                 transaction.getStatus(),
+                transaction.getProviderStatus(),
+                transaction.getNormalisedStatus(),
                 transaction.getMetadata(),
                 transaction.getCreatedAt(),
                 transaction.getUpdatedAt());

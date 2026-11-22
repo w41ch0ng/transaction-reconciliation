@@ -59,6 +59,13 @@ public class TransactionRecord {
     @Column(name = "status", length = 32, nullable = false)
     private TransactionStatus status;
 
+    @Column(name = "provider_status", length = 64, nullable = false)
+    private String providerStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "normalised_status", length = 32, nullable = false)
+    private NormalisedStatus normalisedStatus;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata")
     private Map<String, Object> metadata;
@@ -78,6 +85,8 @@ public class TransactionRecord {
             long amountMinorUnits,
             CurrencyCode currency,
             Instant transactionTimestamp,
+            String providerStatus,
+            NormalisedStatus normalisedStatus,
             Map<String, Object> metadata) {
         if (source == null) {
             throw new IllegalArgumentException("source is required");
@@ -103,6 +112,12 @@ public class TransactionRecord {
         if (transactionTimestamp == null) {
             throw new IllegalArgumentException("transaction timestamp is required");
         }
+        if (providerStatus == null || providerStatus.isBlank()) {
+            throw new IllegalArgumentException("provider status is required");
+        }
+        if (normalisedStatus == null) {
+            throw new IllegalArgumentException("normalised status is required");
+        }
 
         this.source = source;
         this.institution = source.getInstitution();
@@ -112,6 +127,8 @@ public class TransactionRecord {
         this.currency = currency;
         this.transactionTimestamp = transactionTimestamp;
         this.status = TransactionStatus.PENDING;
+        this.providerStatus = providerStatus.trim();
+        this.normalisedStatus = normalisedStatus;
         this.metadata = metadata == null ? null : new HashMap<>(metadata);
 
         Instant now = Instant.now();
@@ -153,6 +170,14 @@ public class TransactionRecord {
 
     public TransactionStatus getStatus() {
         return status;
+    }
+
+    public String getProviderStatus() {
+        return providerStatus;
+    }
+
+    public NormalisedStatus getNormalisedStatus() {
+        return normalisedStatus;
     }
 
     public Map<String, Object> getMetadata() {

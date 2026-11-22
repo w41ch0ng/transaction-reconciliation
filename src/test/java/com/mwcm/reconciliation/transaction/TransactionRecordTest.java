@@ -21,6 +21,8 @@ class TransactionRecordTest {
                 25000,
                 CurrencyCode.GBP,
                 Instant.parse("2026-11-13T10:30:00Z"),
+                "COMPLETED",
+                NormalisedStatus.COMPLETED,
                 null);
 
         assertEquals(TransactionStatus.PENDING, transaction.getStatus());
@@ -36,6 +38,8 @@ class TransactionRecordTest {
                 25000,
                 CurrencyCode.GBP,
                 Instant.parse("2026-11-13T10:30:00Z"),
+                "COMPLETED",
+                NormalisedStatus.COMPLETED,
                 null));
     }
 
@@ -48,6 +52,8 @@ class TransactionRecordTest {
                 0,
                 CurrencyCode.GBP,
                 Instant.parse("2026-11-13T10:30:00Z"),
+                "COMPLETED",
+                NormalisedStatus.COMPLETED,
                 null));
     }
 

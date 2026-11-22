@@ -14,6 +14,8 @@ public record TransactionResponse(
         CurrencyCode currency,
         Instant transactionTimestamp,
         TransactionStatus status,
+        String providerStatus,
+        NormalisedStatus normalisedStatus,
         Map<String, Object> metadata,
         Instant createdAt,
         Instant updatedAt) {}

@@ -26,6 +26,7 @@ class TransactionControllerTest {
               "amountMinorUnits": 25000,
               "currency": "GBP",
               "transactionTimestamp": "2026-11-13T10:30:00Z",
+              "status": "COMPLETED",
               "metadata": { "channel": "card" }
             }
             """;
@@ -50,9 +51,48 @@ class TransactionControllerTest {
             .andExpect(jsonPath("$.amountMinorUnits").value(25000))
             .andExpect(jsonPath("$.currency").value("GBP"))
             .andExpect(jsonPath("$.status").value("PENDING"))
+            .andExpect(jsonPath("$.providerStatus").value("COMPLETED"))
+            .andExpect(jsonPath("$.normalisedStatus").value("COMPLETED"))
             .andExpect(jsonPath("$.metadata.channel").value("card"))
             .andExpect(jsonPath("$.sourceId").value(sourceId))
             .andExpect(jsonPath("$.id").isNotEmpty());
+    }
+
+    @Test
+    void normalisesProviderVocabulary() throws Exception {
+        String sourceId = createSource("CTRL-TX-NORM", "Core ledger");
+        String body = """
+                {
+                  "externalReference": "TXN-SETTLED",
+                  "transactionType": "SALE",
+                  "amountMinorUnits": 1250,
+                  "currency": "gbp",
+                  "transactionTimestamp": "2026-11-13T10:30:00Z",
+                  "status": "settled"
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.transactionType").value("PAYMENT"))
+            .andExpect(jsonPath("$.currency").value("GBP"))
+            .andExpect(jsonPath("$.status").value("PENDING"))
+            .andExpect(jsonPath("$.providerStatus").value("settled"))
+            .andExpect(jsonPath("$.normalisedStatus").value("COMPLETED"));
+    }
+
+    @Test
+    void unknownProviderValueReturnsBadRequest() throws Exception {
+        String sourceId = createSource("CTRL-TX-BAD", "Core ledger");
+        String body = TRANSACTION_JSON.replace("PAYMENT", "WIRE");
+
+        mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("unrecognised transaction type: WIRE"));
     }
 
     @Test

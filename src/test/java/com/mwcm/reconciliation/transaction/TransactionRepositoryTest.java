@@ -88,6 +88,8 @@ class TransactionRepositoryTest {
                 25000,
                 CurrencyCode.GBP,
                 Instant.parse("2026-11-13T10:30:00Z"),
+                "COMPLETED",
+                NormalisedStatus.COMPLETED,
                 null);
     }
 }

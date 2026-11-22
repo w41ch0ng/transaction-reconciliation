@@ -10,8 +10,9 @@ import jakarta.validation.constraints.Size;
 
 public record CreateTransactionRequest(
         @NotBlank @Size(max = 255) String externalReference,
-        @NotNull TransactionType transactionType,
+        @NotBlank @Size(max = 32) String transactionType,
         @NotNull @Positive Long amountMinorUnits,
-        @NotNull CurrencyCode currency,
+        @NotBlank @Size(max = 3) String currency,
         @NotNull Instant transactionTimestamp,
+        @NotBlank @Size(max = 64) String status,
         Map<String, Object> metadata) {}
