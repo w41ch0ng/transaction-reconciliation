@@ -1,6 +1,8 @@
 # Transaction reconciliation
 
-Spring Boot service for comparing a bank's internal transaction ledger with records from an external payment processor.
+A Spring Boot service that reconciles a financial institution's internal ledger with an external payment processor. It accepts transaction records from both sources, validates and normalises them, stores them in PostgreSQL, and raises discrepancies for investigation.
+
+Work in progress.
 
 ## Requirements
 
@@ -17,7 +19,7 @@ PostgreSQL, Kafka, and Redis run in Docker. The application runs on the host thr
 | Kafka      | `apache/kafka:4.4.0`| 9092      |
 | Redis      | `redis:8.10.3`      | 6379      |
 
-The local database name, user, and password are `reconciliation`. Those values are the defaults in `compose.yaml`. Create an `.env` file, and copy `.env.example` to `.env` to override them.
+The local database name, user, and password are `reconciliation`. Those values are the defaults in `compose.yaml`. Copy `.env.example` to `.env` to override them.
 
 From the project directory:
 
@@ -28,7 +30,7 @@ docker compose ps
 
 `docker compose ps` should show all three services as healthy.
 
-`docker compose down` stops the containers and keeps the database volume. `docker compose down -v` deletes that volume and the data in it.
+`docker compose down` stops the containers and keeps their data. `docker compose down -v` deletes that data.
 
 ## Run the application
 
@@ -36,14 +38,30 @@ docker compose ps
 .\mvnw.cmd spring-boot:run
 ```
 
-The application listens on port 8080. It is configured to connect to PostgreSQL at `localhost:5432`, database `reconciliation`, with the local user and password `reconciliation`. Spring opens that connection when the application first uses the database.
+The application listens on port 8080. It connects to PostgreSQL at `localhost:5432`, database `reconciliation`, with the local user and password `reconciliation`. It connects to Redis at `localhost:6379`.
 
 `reconciliation` is a local development password for the empty database created by Docker. `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD` override those settings when they are present in the process environment.
 
-On startup, Flyway applies any pending migrations. The first migration creates the institutions table.
+On startup, Flyway applies any pending migrations. Redis needs to be running before a submission will succeed.
 
-## Roadmap
+Run the tests with the same containers already up:
 
-- Connect the application to Kafka and Redis.
-- Accept transaction records and store them.
-- Reconcile the internal ledger against the payment processor.
+```powershell
+.\mvnw.cmd test
+```
+
+## What works now
+
+- Create and retrieve institutions.
+- Register an integration source for an institution. A source is an internal ledger or a payment processor, and its name is unique within that institution.
+- Accept a transaction with `POST /api/v1/sources/{id}/transactions`, which returns `202 Accepted`. Amounts are integer minor units, so £250.00 is sent as `25000`. Retrieve one transaction, or a filtered page of them.
+- Normalise provider words before the row is stored. `SALE` is stored as `PAYMENT`, `gbp` as `GBP`, and `settled` is kept as the provider's own word and stored as normalised status `COMPLETED`. The platform's processing status starts as `PENDING`.
+- Require an `Idempotency-Key` header on submission to implement idempotency with Redis, so a repeated submission returns the original transaction.
+
+## Still to come
+
+- Process accepted transactions through Kafka, including retries.
+- Compare an institution's internal ledger with its payment processor over a period, and store the outcome of each comparison.
+- Open an exception for a discrepancy, and keep a history of status changes.
+- Authenticate each integration source with an API key.
+- Run the tests in GitHub Actions.
