@@ -1,0 +1,50 @@
+package com.mwcm.reconciliation.transaction;
+
+import java.util.UUID;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
+
+@RestController
+public class TransactionController {
+    private final TransactionService service;
+
+    public TransactionController(TransactionService service) {
+        this.service = service;
+    }
+
+    @PostMapping("/api/v1/sources/{sourceId}/transactions")
+    public ResponseEntity<TransactionResponse> create(
+            @PathVariable UUID sourceId,
+            @Valid @RequestBody CreateTransactionRequest request) {
+        TransactionResponse response = service.create(sourceId, request);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    @GetMapping("/api/v1/transactions/{id}")
+    public TransactionResponse getById(@PathVariable UUID id) {
+        return service.getById(id);
+    }
+
+    @GetMapping("/api/v1/transactions")
+    public Page<TransactionResponse> list(
+            @RequestParam(required = false) UUID institutionId,
+            @RequestParam(required = false) UUID sourceId,
+            @RequestParam(required = false) TransactionStatus status,
+            @RequestParam(required = false) TransactionType type,
+            @RequestParam(required = false) String externalReference,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return service.list(institutionId, sourceId, status, type, externalReference, pageable);
+    }
+}

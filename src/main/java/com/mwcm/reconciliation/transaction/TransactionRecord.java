@@ -1,0 +1,169 @@
+package com.mwcm.reconciliation.transaction;
+
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import com.mwcm.reconciliation.institution.Institution;
+import com.mwcm.reconciliation.source.IntegrationSource;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "transactions")
+public class TransactionRecord {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "institution_id", nullable = false)
+    private Institution institution;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "integration_source_id", nullable = false)
+    private IntegrationSource source;
+
+    @Column(name = "external_reference", length = 255, nullable = false)
+    private String externalReference;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transaction_type", length = 32, nullable = false)
+    private TransactionType transactionType;
+
+    @Column(name = "amount_minor_units", nullable = false)
+    private long amountMinorUnits;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "currency", length = 3, nullable = false)
+    private CurrencyCode currency;
+
+    @Column(name = "transaction_timestamp", nullable = false)
+    private Instant transactionTimestamp;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 32, nullable = false)
+    private TransactionStatus status;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metadata")
+    private Map<String, Object> metadata;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    protected TransactionRecord() {}
+
+    public TransactionRecord(
+            IntegrationSource source,
+            String externalReference,
+            TransactionType transactionType,
+            long amountMinorUnits,
+            CurrencyCode currency,
+            Instant transactionTimestamp,
+            Map<String, Object> metadata) {
+        if (source == null) {
+            throw new IllegalArgumentException("source is required");
+        }
+        if (!source.isActive()) {
+            throw new IllegalArgumentException("source must be active");
+        }
+        if (source.getInstitution() == null || !source.getInstitution().isActive()) {
+            throw new IllegalArgumentException("institution is required and must be active");
+        }
+        if (externalReference == null || externalReference.isBlank()) {
+            throw new IllegalArgumentException("external reference is required");
+        }
+        if (transactionType == null) {
+            throw new IllegalArgumentException("transaction type is required");
+        }
+        if (amountMinorUnits <= 0) {
+            throw new IllegalArgumentException("amount must be positive");
+        }
+        if (currency == null) {
+            throw new IllegalArgumentException("currency is required");
+        }
+        if (transactionTimestamp == null) {
+            throw new IllegalArgumentException("transaction timestamp is required");
+        }
+
+        this.source = source;
+        this.institution = source.getInstitution();
+        this.externalReference = externalReference;
+        this.transactionType = transactionType;
+        this.amountMinorUnits = amountMinorUnits;
+        this.currency = currency;
+        this.transactionTimestamp = transactionTimestamp;
+        this.status = TransactionStatus.PENDING;
+        this.metadata = metadata == null ? null : new HashMap<>(metadata);
+
+        Instant now = Instant.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public Institution getInstitution() {
+        return institution;
+    }
+
+    public IntegrationSource getSource() {
+        return source;
+    }
+
+    public String getExternalReference() {
+        return externalReference;
+    }
+
+    public TransactionType getTransactionType() {
+        return transactionType;
+    }
+
+    public long getAmountMinorUnits() {
+        return amountMinorUnits;
+    }
+
+    public CurrencyCode getCurrency() {
+        return currency;
+    }
+
+    public Instant getTransactionTimestamp() {
+        return transactionTimestamp;
+    }
+
+    public TransactionStatus getStatus() {
+        return status;
+    }
+
+    public Map<String, Object> getMetadata() {
+        return metadata;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+}
