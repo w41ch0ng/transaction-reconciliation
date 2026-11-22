@@ -8,6 +8,7 @@ public record TransactionResponse(
         UUID id,
         UUID institutionId,
         UUID sourceId,
+        String idempotencyKey,
         String externalReference,
         TransactionType transactionType,
         long amountMinorUnits,

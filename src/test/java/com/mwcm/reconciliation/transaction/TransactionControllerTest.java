@@ -1,5 +1,6 @@
 package com.mwcm.reconciliation.transaction;
 
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -43,9 +44,11 @@ class TransactionControllerTest {
         String sourceId = createSource("CTRL-TX-CREATE", "Core ledger");
 
         mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .header("Idempotency-Key", "create-1042")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(TRANSACTION_JSON))
             .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.idempotencyKey").value("create-1042"))
             .andExpect(jsonPath("$.externalReference").value("TXN-1042"))
             .andExpect(jsonPath("$.transactionType").value("PAYMENT"))
             .andExpect(jsonPath("$.amountMinorUnits").value(25000))
@@ -73,6 +76,7 @@ class TransactionControllerTest {
                 """;
 
         mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .header("Idempotency-Key", "norm-settled")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
             .andExpect(status().isAccepted())
@@ -89,6 +93,7 @@ class TransactionControllerTest {
         String body = TRANSACTION_JSON.replace("PAYMENT", "WIRE");
 
         mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .header("Idempotency-Key", "bad-wire")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
             .andExpect(status().isBadRequest())
@@ -98,6 +103,7 @@ class TransactionControllerTest {
     @Test
     void missingSourceReturnsNotFound() throws Exception {
         mockMvc.perform(post("/api/v1/sources/00000000-0000-0000-0000-000000000000/transactions")
+                .header("Idempotency-Key", "missing-source")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(TRANSACTION_JSON))
             .andExpect(status().isNotFound());
@@ -109,6 +115,7 @@ class TransactionControllerTest {
         String body = TRANSACTION_JSON.replace("TXN-1042", "");
 
         mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .header("Idempotency-Key", "blank-ref")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
             .andExpect(status().isBadRequest());
@@ -120,6 +127,7 @@ class TransactionControllerTest {
         String body = TRANSACTION_JSON.replace("25000", "0");
 
         mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .header("Idempotency-Key", "bad-amount")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
             .andExpect(status().isBadRequest());
@@ -129,6 +137,7 @@ class TransactionControllerTest {
     void getByIdReturnsCreatedTransaction() throws Exception {
         String sourceId = createSource("CTRL-TX-GET", "Core ledger");
         String response = mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .header("Idempotency-Key", "get-1042")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(TRANSACTION_JSON))
             .andExpect(status().isAccepted())
@@ -152,8 +161,16 @@ class TransactionControllerTest {
     @Test
     void listFiltersByExternalReference() throws Exception {
         String sourceId = createSource("CTRL-TX-LIST", "Core ledger");
-        submit(sourceId, TRANSACTION_JSON);
-        submit(sourceId, TRANSACTION_JSON.replace("TXN-1042", "TXN-OTHER"));
+        mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .header("Idempotency-Key", "list-1042")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(TRANSACTION_JSON))
+            .andExpect(status().isAccepted());
+        mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .header("Idempotency-Key", "list-other")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(TRANSACTION_JSON.replace("TXN-1042", "TXN-OTHER")))
+            .andExpect(status().isAccepted());
 
         mockMvc.perform(get("/api/v1/transactions")
                 .param("externalReference", "TXN-1042")
@@ -166,8 +183,16 @@ class TransactionControllerTest {
     @Test
     void listHonoursPageSize() throws Exception {
         String sourceId = createSource("CTRL-TX-PAGE", "Core ledger");
-        submit(sourceId, TRANSACTION_JSON);
-        submit(sourceId, TRANSACTION_JSON.replace("TXN-1042", "TXN-1043"));
+        mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .header("Idempotency-Key", "page-1042")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(TRANSACTION_JSON))
+            .andExpect(status().isAccepted());
+        mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .header("Idempotency-Key", "page-1043")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(TRANSACTION_JSON.replace("TXN-1042", "TXN-1043")))
+            .andExpect(status().isAccepted());
 
         mockMvc.perform(get("/api/v1/transactions")
                 .param("sourceId", sourceId)
@@ -177,11 +202,84 @@ class TransactionControllerTest {
             .andExpect(jsonPath("$.content.length()").value(1));
     }
 
-    private void submit(String sourceId, String body) throws Exception {
+    @Test
+    void repeatedSubmissionReturnsTheOriginalTransaction() throws Exception {
+        String sourceId = createSource("CTRL-TX-REPLAY", "Core ledger");
+
+        String first = mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .header("Idempotency-Key", "replay-1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(TRANSACTION_JSON))
+            .andExpect(status().isAccepted())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        String transactionId = JsonPath.read(first, "$.id");
+
+        mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .header("Idempotency-Key", "replay-1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(TRANSACTION_JSON))
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.id").value(transactionId));
+
+        mockMvc.perform(get("/api/v1/transactions").param("sourceId", sourceId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void sameKeyWithDifferentAmountReturnsConflict() throws Exception {
+        String sourceId = createSource("CTRL-TX-CONFLICT", "Core ledger");
+        mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .header("Idempotency-Key", "conflict-1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(TRANSACTION_JSON))
+            .andExpect(status().isAccepted());
+
+        mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
+                .header("Idempotency-Key", "conflict-1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(TRANSACTION_JSON.replace("25000", "26000")))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message").value("idempotency key already used with a different request"));
+    }
+
+    @Test
+    void sameKeyOnAnotherSourceCreatesASecondTransaction() throws Exception {
+        String firstSource = createSource("CTRL-TX-KEY-A", "Core ledger");
+        String secondSource = createSource("CTRL-TX-KEY-B", "Card processor");
+
+        String first = mockMvc.perform(post("/api/v1/sources/" + firstSource + "/transactions")
+                .header("Idempotency-Key", "shared-key")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(TRANSACTION_JSON))
+            .andExpect(status().isAccepted())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        String second = mockMvc.perform(post("/api/v1/sources/" + secondSource + "/transactions")
+                .header("Idempotency-Key", "shared-key")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(TRANSACTION_JSON))
+            .andExpect(status().isAccepted())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String firstId = JsonPath.read(first, "$.id");
+        String secondId = JsonPath.read(second, "$.id");
+        assertNotEquals(firstId, secondId);
+    }
+
+    @Test
+    void missingIdempotencyKeyReturnsBadRequest() throws Exception {
+        String sourceId = createSource("CTRL-TX-NO-KEY", "Core ledger");
+
         mockMvc.perform(post("/api/v1/sources/" + sourceId + "/transactions")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body))
-            .andExpect(status().isAccepted());
+                .content(TRANSACTION_JSON))
+            .andExpect(status().isBadRequest());
     }
 
     private String createSource(String institutionCode, String sourceName) throws Exception {

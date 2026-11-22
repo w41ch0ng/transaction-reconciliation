@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.mwcm.reconciliation.source.DuplicateIntegrationSourceNameException;
 import com.mwcm.reconciliation.source.IntegrationSourceNotFoundException;
+import com.mwcm.reconciliation.transaction.IdempotencyKeyConflictException;
 import com.mwcm.reconciliation.transaction.TransactionNotFoundException;
 import com.mwcm.reconciliation.transaction.UnrecognisedTransactionValueException;
 
@@ -42,6 +43,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(TransactionNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleTransactionNotFound(TransactionNotFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(exception.getMessage()));
+    }
+
+    @ExceptionHandler(IdempotencyKeyConflictException.class)
+    public ResponseEntity<ErrorResponse> handleIdempotencyKeyConflict(IdempotencyKeyConflictException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(exception.getMessage()));
     }
 
     @ExceptionHandler(UnrecognisedTransactionValueException.class)

@@ -1,5 +1,6 @@
 package com.mwcm.reconciliation.transaction;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -9,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface TransactionRepository extends JpaRepository<TransactionRecord, UUID> {
+    Optional<TransactionRecord> findBySourceIdAndIdempotencyKey(UUID sourceId, String idempotencyKey);
+
     // JPQL query names the TransactionRecord entity and its fields.
     // Hibernate writes the SELECT for the transactions table. Null parameters skip
     // that filter, and values are bound separately from query text.

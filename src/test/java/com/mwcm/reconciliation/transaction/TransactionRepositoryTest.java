@@ -2,11 +2,13 @@ package com.mwcm.reconciliation.transaction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.data.domain.PageRequest;
@@ -74,6 +76,21 @@ class TransactionRepositoryTest {
         assertEquals("TXN-A", page.getContent().get(0).getExternalReference());
     }
 
+    @Test
+    void idempotencyKeyIsUniqueForEachSource() {
+        IntegrationSource source = savedSource("Idem Bank", "TX-REPO-IDEM", "Ledger");
+        IntegrationSource other = savedSource("Idem Bank Two", "TX-REPO-IDEM-2", "Ledger");
+        repository.saveAndFlush(transaction(source, "TXN-1", "same-key"));
+        repository.saveAndFlush(transaction(other, "TXN-2", "same-key"));
+
+        TransactionRecord found = repository.findBySourceIdAndIdempotencyKey(source.getId(), "same-key")
+                .orElseThrow();
+        assertEquals("TXN-1", found.getExternalReference());
+
+        assertThrows(DataIntegrityViolationException.class,
+                () -> repository.saveAndFlush(transaction(source, "TXN-3", "same-key")));
+    }
+
     private IntegrationSource savedSource(String institutionName, String code, String sourceName) {
         Institution institution = institutionRepository.save(new Institution(institutionName, code));
         return sourceRepository.save(
@@ -81,8 +98,16 @@ class TransactionRepositoryTest {
     }
 
     private TransactionRecord transaction(IntegrationSource source, String externalReference) {
+        return transaction(source, externalReference, externalReference);
+    }
+
+    private TransactionRecord transaction(
+            IntegrationSource source,
+            String externalReference,
+            String idempotencyKey) {
         return new TransactionRecord(
                 source,
+                idempotencyKey,
                 externalReference,
                 TransactionType.PAYMENT,
                 25000,

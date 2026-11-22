@@ -16,6 +16,7 @@ class TransactionRecordTest {
     void newTransactionStartsPending() {
         TransactionRecord transaction = new TransactionRecord(
                 activeSource(),
+                "idem-1",
                 "TXN-1",
                 TransactionType.PAYMENT,
                 25000,
@@ -26,6 +27,7 @@ class TransactionRecordTest {
                 null);
 
         assertEquals(TransactionStatus.PENDING, transaction.getStatus());
+        assertEquals("idem-1", transaction.getIdempotencyKey());
         assertEquals(25000, transaction.getAmountMinorUnits());
     }
 
@@ -33,6 +35,7 @@ class TransactionRecordTest {
     void rejectsBlankExternalReference() {
         assertThrows(IllegalArgumentException.class, () -> new TransactionRecord(
                 activeSource(),
+                "idem-1",
                 " ",
                 TransactionType.PAYMENT,
                 25000,
@@ -47,6 +50,7 @@ class TransactionRecordTest {
     void rejectsNonPositiveAmount() {
         assertThrows(IllegalArgumentException.class, () -> new TransactionRecord(
                 activeSource(),
+                "idem-1",
                 "TXN-1",
                 TransactionType.PAYMENT,
                 0,

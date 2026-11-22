@@ -22,9 +22,14 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(name = "transactions")
+@Table(
+        name = "transactions",
+        uniqueConstraints = @UniqueConstraint(
+                name = "transactions_source_idempotency_key",
+                columnNames = {"integration_source_id", "idempotency_key"}))
 public class TransactionRecord {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -40,6 +45,9 @@ public class TransactionRecord {
 
     @Column(name = "external_reference", length = 255, nullable = false)
     private String externalReference;
+
+    @Column(name = "idempotency_key", length = 255, nullable = false)
+    private String idempotencyKey;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "transaction_type", length = 32, nullable = false)
@@ -80,6 +88,7 @@ public class TransactionRecord {
 
     public TransactionRecord(
             IntegrationSource source,
+            String idempotencyKey,
             String externalReference,
             TransactionType transactionType,
             long amountMinorUnits,
@@ -96,6 +105,12 @@ public class TransactionRecord {
         }
         if (source.getInstitution() == null || !source.getInstitution().isActive()) {
             throw new IllegalArgumentException("institution is required and must be active");
+        }
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new IllegalArgumentException("idempotency key is required");
+        }
+        if (idempotencyKey.trim().length() > 255) {
+            throw new IllegalArgumentException("idempotency key must be at most 255 characters");
         }
         if (externalReference == null || externalReference.isBlank()) {
             throw new IllegalArgumentException("external reference is required");
@@ -121,6 +136,7 @@ public class TransactionRecord {
 
         this.source = source;
         this.institution = source.getInstitution();
+        this.idempotencyKey = idempotencyKey.trim();
         this.externalReference = externalReference;
         this.transactionType = transactionType;
         this.amountMinorUnits = amountMinorUnits;
@@ -150,6 +166,10 @@ public class TransactionRecord {
 
     public String getExternalReference() {
         return externalReference;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
     }
 
     public TransactionType getTransactionType() {

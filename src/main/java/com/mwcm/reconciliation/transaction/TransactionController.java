@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,8 +28,9 @@ public class TransactionController {
     @PostMapping("/api/v1/sources/{sourceId}/transactions")
     public ResponseEntity<TransactionResponse> create(
             @PathVariable UUID sourceId,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody CreateTransactionRequest request) {
-        TransactionResponse response = service.create(sourceId, request);
+        TransactionResponse response = service.create(sourceId, idempotencyKey, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
