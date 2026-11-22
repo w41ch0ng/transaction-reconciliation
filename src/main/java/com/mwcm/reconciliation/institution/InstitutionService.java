@@ -37,6 +37,12 @@ public class InstitutionService {
 
     // InstitutionResponse constructor from Institution object
     private InstitutionResponse toResponse(Institution institution) {
-        return new InstitutionResponse(institution.getId(), institution.getName(), institution.getCode(), institution.isActive(), institution.getCreatedAt(), institution.getUpdatedAt());
+        return new InstitutionResponse(
+            institution.getId(),
+            institution.getName(),
+            institution.getCode(),
+            institution.isActive(),
+            institution.getCreatedAt(),
+            institution.getUpdatedAt());
     }
 }
