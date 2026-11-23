@@ -152,6 +152,22 @@ public class TransactionRecord {
         this.updatedAt = now;
     }
 
+    public void beginProcessing() {
+        if (this.status != TransactionStatus.PENDING) {
+            throw new IllegalStateException("transaction cannot be processed");
+        }
+        this.status = TransactionStatus.PROCESSING;
+        this.updatedAt = Instant.now();
+    }
+
+    public void completeProcessing() {
+        if (this.status != TransactionStatus.PROCESSING) {
+            throw new IllegalStateException("transaction cannot be completed");
+        }
+        this.status = TransactionStatus.PROCESSED;
+        this.updatedAt = Instant.now();
+    }
+
     public UUID getId() {
         return id;
     }

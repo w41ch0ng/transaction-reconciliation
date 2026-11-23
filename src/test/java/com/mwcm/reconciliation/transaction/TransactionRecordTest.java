@@ -32,6 +32,44 @@ class TransactionRecordTest {
     }
 
     @Test
+    void processingCompletesAPendingTransaction() {
+        TransactionRecord transaction = new TransactionRecord(
+                activeSource(),
+                "idem-1",
+                "TXN-1",
+                TransactionType.PAYMENT,
+                25000,
+                CurrencyCode.GBP,
+                Instant.parse("2026-11-13T10:30:00Z"),
+                "COMPLETED",
+                NormalisedStatus.COMPLETED,
+                null);
+
+        transaction.beginProcessing();
+        assertEquals(TransactionStatus.PROCESSING, transaction.getStatus());
+        transaction.completeProcessing();
+        assertEquals(TransactionStatus.PROCESSED, transaction.getStatus());
+    }
+
+    @Test
+    void processingRejectsATransactionThatIsNotPending() {
+        TransactionRecord transaction = new TransactionRecord(
+                activeSource(),
+                "idem-1",
+                "TXN-1",
+                TransactionType.PAYMENT,
+                25000,
+                CurrencyCode.GBP,
+                Instant.parse("2026-11-13T10:30:00Z"),
+                "COMPLETED",
+                NormalisedStatus.COMPLETED,
+                null);
+        transaction.beginProcessing();
+
+        assertThrows(IllegalStateException.class, transaction::beginProcessing);
+    }
+
+    @Test
     void rejectsBlankExternalReference() {
         assertThrows(IllegalArgumentException.class, () -> new TransactionRecord(
                 activeSource(),

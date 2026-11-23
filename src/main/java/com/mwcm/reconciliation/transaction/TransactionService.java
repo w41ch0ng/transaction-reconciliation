@@ -4,6 +4,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,16 +25,19 @@ public class TransactionService {
     private final IntegrationSourceRepository sourceRepository;
     private final TransactionNormaliser normaliser;
     private final IdempotencyStore idempotencyStore;
+    private final ApplicationEventPublisher events;
 
     public TransactionService(
             TransactionRepository repository,
             IntegrationSourceRepository sourceRepository,
             TransactionNormaliser normaliser,
-            IdempotencyStore idempotencyStore) {
+            IdempotencyStore idempotencyStore,
+            ApplicationEventPublisher events) {
         this.repository = repository;
         this.sourceRepository = sourceRepository;
         this.normaliser = normaliser;
         this.idempotencyStore = idempotencyStore;
+        this.events = events;
     }
 
     public TransactionResponse create(UUID sourceId, String idempotencyKey, CreateTransactionRequest request) {
@@ -59,6 +63,7 @@ public class TransactionService {
                     normaliser.normaliseStatus(request.status()),
                     request.metadata()));
             idempotencyStore.remember(sourceId, key, saved.getId());
+            events.publishEvent(new TransactionAccepted(saved.getId()));
             return toResponse(saved);
         } catch (DataIntegrityViolationException exception) {
             if (isIdempotencyConflict(exception)) {
@@ -66,6 +71,17 @@ public class TransactionService {
             }
             throw exception;
         }
+    }
+
+    public void process(UUID id) {
+        TransactionRecord transaction = repository.findById(id)
+                .orElseThrow(() -> new TransactionNotFoundException(id));
+        if (transaction.getStatus() == TransactionStatus.PROCESSED) {
+            return;
+        }
+        transaction.beginProcessing();
+        transaction.completeProcessing();
+        repository.save(transaction);
     }
 
     public TransactionResponse getById(UUID id) {
