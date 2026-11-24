@@ -70,6 +70,39 @@ class TransactionRecordTest {
     }
 
     @Test
+    void failingAPendingTransactionRecordsItAsFailed() {
+        TransactionRecord transaction = pendingTransaction();
+
+        transaction.fail();
+        assertEquals(TransactionStatus.FAILED, transaction.getStatus());
+        transaction.fail();
+        assertEquals(TransactionStatus.FAILED, transaction.getStatus());
+    }
+
+    @Test
+    void failingAProcessedTransactionIsRejected() {
+        TransactionRecord transaction = pendingTransaction();
+        transaction.beginProcessing();
+        transaction.completeProcessing();
+
+        assertThrows(IllegalStateException.class, transaction::fail);
+    }
+
+    private TransactionRecord pendingTransaction() {
+        return new TransactionRecord(
+                activeSource(),
+                "idem-1",
+                "TXN-1",
+                TransactionType.PAYMENT,
+                25000,
+                CurrencyCode.GBP,
+                Instant.parse("2026-11-13T10:30:00Z"),
+                "COMPLETED",
+                NormalisedStatus.COMPLETED,
+                null);
+    }
+
+    @Test
     void rejectsBlankExternalReference() {
         assertThrows(IllegalArgumentException.class, () -> new TransactionRecord(
                 activeSource(),

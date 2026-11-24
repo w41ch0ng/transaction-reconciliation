@@ -168,6 +168,17 @@ public class TransactionRecord {
         this.updatedAt = Instant.now();
     }
 
+    public void fail() {
+        if (this.status == TransactionStatus.FAILED) {
+            return;
+        }
+        if (this.status == TransactionStatus.PROCESSED) {
+            throw new IllegalStateException("transaction cannot be failed");
+        }
+        this.status = TransactionStatus.FAILED;
+        this.updatedAt = Instant.now();
+    }
+
     public UUID getId() {
         return id;
     }

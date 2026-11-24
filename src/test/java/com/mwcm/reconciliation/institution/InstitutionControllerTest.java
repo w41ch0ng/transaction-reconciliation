@@ -14,7 +14,7 @@ import static org.hamcrest.Matchers.hasItem;
 
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.kafka.listener.auto-startup=false")
 @AutoConfigureMockMvc
 @Transactional
 class InstitutionControllerTest {

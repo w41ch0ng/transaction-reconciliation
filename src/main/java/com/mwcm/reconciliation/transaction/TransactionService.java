@@ -76,11 +76,26 @@ public class TransactionService {
     public void process(UUID id) {
         TransactionRecord transaction = repository.findById(id)
                 .orElseThrow(() -> new TransactionNotFoundException(id));
-        if (transaction.getStatus() == TransactionStatus.PROCESSED) {
+        if (transaction.getStatus() == TransactionStatus.PROCESSED
+                || transaction.getStatus() == TransactionStatus.FAILED) {
             return;
         }
         transaction.beginProcessing();
         transaction.completeProcessing();
+        repository.save(transaction);
+    }
+
+    public void fail(UUID id) {
+        Optional<TransactionRecord> found = repository.findById(id);
+        if (found.isEmpty()) {
+            return;
+        }
+        TransactionRecord transaction = found.get();
+        if (transaction.getStatus() == TransactionStatus.PROCESSED
+                || transaction.getStatus() == TransactionStatus.FAILED) {
+            return;
+        }
+        transaction.fail();
         repository.save(transaction);
     }
 
