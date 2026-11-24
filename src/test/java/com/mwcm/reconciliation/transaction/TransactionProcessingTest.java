@@ -53,6 +53,9 @@ class TransactionProcessingTest {
     @MockitoSpyBean
     private TransactionService transactions;
 
+    @MockitoSpyBean
+    private TransactionPublisher publisher;
+
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
@@ -62,6 +65,9 @@ class TransactionProcessingTest {
     @Value("${app.kafka.processing-attempts}")
     private int processingAttempts;
 
+    @Value("${app.kafka.outbox-retry-interval-ms}")
+    private long outboxRetryIntervalMs;
+
     @Autowired
     TransactionProcessingTest(MockMvc mockMvc) {
         this.mockMvc = mockMvc;
@@ -70,6 +76,7 @@ class TransactionProcessingTest {
     @BeforeEach
     void resetProcessing() {
         reset(transactions);
+        reset(publisher);
     }
 
     @Test
@@ -99,6 +106,18 @@ class TransactionProcessingTest {
         mockMvc.perform(get("/api/v1/transactions").param("sourceId", sourceId))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void failedPublishIsRetriedFromTheOutbox() throws Exception {
+        doThrow(new IllegalStateException("publish failed")).when(publisher).publish(any(UUID.class));
+        String transactionId = submit("OUTBOX");
+
+        Thread.sleep(outboxRetryIntervalMs * 2);
+        assertEquals("PENDING", currentStatus(transactionId));
+
+        reset(publisher);
+        assertEquals("PROCESSED", waitForStatus(transactionId, "PROCESSED"));
     }
 
     @Test
@@ -140,6 +159,15 @@ class TransactionProcessingTest {
             .getResponse()
             .getContentAsString();
         return JsonPath.read(created, "$.id");
+    }
+
+    private String currentStatus(String transactionId) throws Exception {
+        String body = mockMvc.perform(get("/api/v1/transactions/" + transactionId))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        return JsonPath.read(body, "$.status");
     }
 
     private String waitForStatus(String transactionId, String expected) throws Exception {

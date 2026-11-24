@@ -25,6 +25,7 @@ public class TransactionService {
     private final IntegrationSourceRepository sourceRepository;
     private final TransactionNormaliser normaliser;
     private final IdempotencyStore idempotencyStore;
+    private final TransactionOutboxRepository outbox;
     private final ApplicationEventPublisher events;
 
     public TransactionService(
@@ -32,11 +33,13 @@ public class TransactionService {
             IntegrationSourceRepository sourceRepository,
             TransactionNormaliser normaliser,
             IdempotencyStore idempotencyStore,
+            TransactionOutboxRepository outbox,
             ApplicationEventPublisher events) {
         this.repository = repository;
         this.sourceRepository = sourceRepository;
         this.normaliser = normaliser;
         this.idempotencyStore = idempotencyStore;
+        this.outbox = outbox;
         this.events = events;
     }
 
@@ -62,6 +65,7 @@ public class TransactionService {
                     normaliser.providerStatus(request.status()),
                     normaliser.normaliseStatus(request.status()),
                     request.metadata()));
+            outbox.save(new TransactionOutbox(saved.getId()));
             idempotencyStore.remember(sourceId, key, saved.getId());
             events.publishEvent(new TransactionAccepted(saved.getId()));
             return toResponse(saved);

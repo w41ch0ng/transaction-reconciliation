@@ -25,19 +25,22 @@ public class TransactionPublisher {
     }
 
     public void publish(UUID transactionId) {
-        String id = transactionId.toString();
-        kafka.send(topic, id, id);
+        send(topic, transactionId, "transaction could not be published");
     }
 
     public void publishFailed(UUID transactionId) {
+        send(deadLetterTopic, transactionId, "failed transaction could not be recorded");
+    }
+
+    private void send(String destination, UUID transactionId, String failureMessage) {
         String id = transactionId.toString();
         try {
-            kafka.send(deadLetterTopic, id, id).get(5, TimeUnit.SECONDS);
+            kafka.send(destination, id, id).get(5, TimeUnit.SECONDS);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("failed transaction could not be recorded", exception);
+            throw new IllegalStateException(failureMessage, exception);
         } catch (ExecutionException | TimeoutException exception) {
-            throw new IllegalStateException("failed transaction could not be recorded", exception);
+            throw new IllegalStateException(failureMessage, exception);
         }
     }
 }

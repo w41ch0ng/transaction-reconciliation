@@ -57,7 +57,7 @@ Run the tests with the same containers already up:
 - Accept a transaction with `POST /api/v1/sources/{id}/transactions`, which returns `202 Accepted`. Amounts are integer minor units, so £250.00 is sent as `25000`. Retrieve one transaction, or a filtered page of them.
 - Normalise provider words before the row is stored. `SALE` is stored as `PAYMENT`, `gbp` as `GBP`, and `settled` is kept as the provider's own word and stored as normalised status `COMPLETED`. The platform's processing status starts as `PENDING`.
 - Require an `Idempotency-Key` header on submission to implement idempotency with Redis, so a repeated submission returns the original transaction.
-- Publish each accepted transaction to Kafka. The consumer loads that transaction and moves its processing status from `PENDING` to `PROCESSED`.
+- Publish each accepted transaction to Kafka. The consumer loads that transaction and moves its processing status from `PENDING` to `PROCESSED`. A stored transaction whose send does not succeed is published from an outbox.
 - Retry processing that fails. When the attempts are used up, the transaction is stored as `FAILED` and its id is published to a dead-letter topic.
 
 ## Still to come
